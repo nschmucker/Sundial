@@ -1,7 +1,7 @@
 """
-name.py
-This file xxx
-Developed on Python x.x.x
+sundial.py
+This file contains code to run an indoor sundial
+Developed on Python 2.7.16 / Raspberry Pi 4
 Nathaniel Schmucker
 """
 
