@@ -5,54 +5,48 @@ Developed on Python 2.7.16 / Raspberry Pi 4
 Nathaniel Schmucker
 """
 
-import pygame
-import random
+from scipy.optimize import fsolve
+import math
+
+def equations(p):
+    x, y = p
+    return (x+y**2-4, math.exp(x) + x*y - 3)
+
+x, y =  fsolve(equations, (1, 1))
+
+print equations((x, y))
 
 # --- Global constants ---
-BLACK    = (  0,   0,   0)
-WHITE    = (255, 255, 255)
-LT_BROWN = (236, 162,  77)
-DK_BROWN = (180,  83,  38)
+GNOMON_LOC = (0, 0, 0)
+GNOMON_LENGTH = None
+ARM_LOC = (0, -2, 1)
+ARM_LENGTH = 5
 
-SCREEN_WIDTH  = 750
-SCREEN_HEIGHT = 550
+def equations(vars):
+    alt, az, t = vars
+    return [ARM_LOC[0] + ARM_LENGTH*math.sin(alt) - (GNOMON_LOC[0] + t*math.tan(GNOMON_ALT)),
+            ARM_LOC[1] + ARM_LENGTH*math.cos(alt)*math.sin(az) - (GNOMON_LOC[1] + t*math.sin(GNOMON_AZ)),
+            ARM_LOC[2] + ARM_LENGTH*math.cos(alt)*math.cos(az) - (GNOMON_LOC[2] + t*math.cos(GNOMON_AZ))]
 
-# --- Classes ---
-class Button:
-    """ This class is for all the buttons on the screen """
+gnomon_alt = math.pi / 2
+gnomon_az = math.pi / 2
+arm_alt = math.pi / 2
+arm_az = math.pi / 2
 
-    def __init__(self, rect, text):
-        
-        # Call the parent class (Sprite) constructor
-        super().__init__()
-        
-        self.rect = pygame.Rect(rect)
-        self.text = font.render(text, True, WHITE)
-        self.text_rect = self.text.get_rect(center=self.rect.center)
-        self.function = function
+alt, az, t =  fsolve(equations, (math.pi / 2, math.pi / 2, 4))
 
-    def draw(self, surf):
-        surf.blit(self.rect, self.rect)
-        surf.blit(self.text, self.text_rect)
-
-# --- Main loop ---
-# Initialize Pygame and set up the window
-pygame.init()
-
-size = [SCREEN_WIDTH, SCREEN_HEIGHT]
-
-# Used to manage how fast the screen updates
-clock = pygame.time.Clock()
-
-# Create an instance of the Game class
-game = Game(stack_size=4, burnt=True, font=font)
-
-# Main loop
 while True:
 
-    # Process events (keystrokes, mouse clicks, etc)
-    done = game.process_events()
-
+    # Get sun's new location
+    gnomon_alt =
+    gnomon_az =
+    
+    # Calculate sun's location relative to arm pivot point
+    arm_altaz =
+    
+    arm.alt =
+    arm.az =
+    
     # Update object positions
     game.run_logic()
 
