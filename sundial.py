@@ -1,57 +1,53 @@
 """
 sundial.py
 This file contains code to run an indoor sundial
-Developed on Python 2.7.16 / Raspberry Pi 4
+Developed on Python 3.7.3 / Raspberry Pi 4
 Nathaniel Schmucker
 """
 
 from scipy.optimize import fsolve
+from numpy import isclose
 import math
 
-def equations(p):
-    x, y = p
-    return (x+y**2-4, math.exp(x) + x*y - 3)
-
-x, y =  fsolve(equations, (1, 1))
-
-print equations((x, y))
-
-# --- Global constants ---
 GNOMON_LOC = (0, 0, 0)
 GNOMON_LENGTH = None
 ARM_LOC = (0, -2, 1)
 ARM_LENGTH = 5
 
-def equations(vars):
+def func(vars):
     alt, az, t = vars
-    return [ARM_LOC[0] + ARM_LENGTH*math.sin(alt) - (GNOMON_LOC[0] + t*math.tan(GNOMON_ALT)),
-            ARM_LOC[1] + ARM_LENGTH*math.cos(alt)*math.sin(az) - (GNOMON_LOC[1] + t*math.sin(GNOMON_AZ)),
-            ARM_LOC[2] + ARM_LENGTH*math.cos(alt)*math.cos(az) - (GNOMON_LOC[2] + t*math.cos(GNOMON_AZ))]
+    return [(ARM_LOC[0] + ARM_LENGTH*math.cos(alt)*math.cos(az)) - (GNOMON_LOC[0] + t*math.cos(gnomon_az)),
+            (ARM_LOC[1] + ARM_LENGTH*math.cos(alt)*math.sin(az)) - (GNOMON_LOC[1] + t*math.sin(gnomon_az)),
+            (ARM_LOC[2] + ARM_LENGTH*math.sin(alt)) - (GNOMON_LOC[2] + t*math.tan(gnomon_alt))]
 
-gnomon_alt = math.pi / 2
-gnomon_az = math.pi / 2
-arm_alt = math.pi / 2
-arm_az = math.pi / 2
-
-alt, az, t =  fsolve(equations, (math.pi / 2, math.pi / 2, 4))
-
-while True:
-
-    # Get sun's new location
+unstable_math = False
+while not unstable_math:
+    # Get current time
+    now = # Current time
+    
+    # Get sun's location at current time
     gnomon_alt =
     gnomon_az =
     
-    # Calculate sun's location relative to arm pivot point
-    arm_altaz =
-    
-    arm.alt =
-    arm.az =
-    
-    # Update object positions
-    game.run_logic()
+    if gnomon_alt < 0:
+        # light off
+        # servos to home position
+        # sleep XX hours
+    else:
+        # Calculate sun's location relative to arm pivot point
+        root = fsolve(func, (math.pi / 3, math.pi / 2, 8))
+        
+        arm_alt = root[0]
+        arm_az = root[1] # If negative, add math.pi??
+        
+        if not all(isclose(func(root), [0.0, 0.0, 0.0])):
+            unstable_math = True
+        # if not theta = theta: might not be necessary test
+        #    unstable_math = True 
+        else:
+            # servos to XX position,
+            # light on
+            # sleep at least as long as resolution of Servos
 
-    # Draw the current frame
-    game.display_frame(screen, font)
-
-    # Limit to 60 frames per second
-    clock.tick(60)
+# light off
+# servos to home position
