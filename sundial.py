@@ -5,14 +5,20 @@ Developed on Python 3.7.3 / Raspberry Pi 4
 Nathaniel Schmucker
 """
 
+from pysolar.solar import get_altitude, get_azimuth
 from scipy.optimize import fsolve
 from numpy import isclose
+import datetime
 import math
 
 GNOMON_LOC = (0, 0, 0)
 GNOMON_LENGTH = None
 ARM_LOC = (0, -2, 1)
 ARM_LENGTH = 5
+
+# Independence Hall
+LAT =  39.95
+LON = -75.15
 
 def func(vars):
     alt, az, t = vars
@@ -22,12 +28,12 @@ def func(vars):
 
 unstable_math = False
 while not unstable_math:
-    # Get current time
-    now = # Current time
+
+    now = datetime.datetime.now(datetime.timezone.utc) #TODO: Adjust for Eastern Time/DST
     
     # Get sun's location at current time
-    gnomon_alt =
-    gnomon_az =
+    gnomon_alt = get_altitude(LAT, LON, now)
+    gnomon_az = get_azimuth(LAT, LON, now)
     
     if gnomon_alt < 0:
         # light off
@@ -37,14 +43,12 @@ while not unstable_math:
         # Calculate sun's location relative to arm pivot point
         root = fsolve(func, (math.pi / 3, math.pi / 2, 8))
         
-        arm_alt = root[0]
-        arm_az = root[1] # If negative, add math.pi??
-        
         if not all(isclose(func(root), [0.0, 0.0, 0.0])):
             unstable_math = True
-        # if not theta = theta: might not be necessary test
-        #    unstable_math = True 
-        else:
+        else:           
+            arm_alt = root[0]
+            arm_az = root[1] + math.pi if root[1] < 0 else root[1]
+            
             # servos to XX position,
             # light on
             # sleep at least as long as resolution of Servos
