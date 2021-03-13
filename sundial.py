@@ -5,7 +5,6 @@ Developed on Python 3.7.3 / Raspberry Pi 4
 Nathaniel Schmucker
 """
 
-from icecream import ic # For debugging
 from pysolar.solar import get_altitude, get_azimuth
 from scipy.optimize import fsolve
 from numpy import isclose
@@ -34,22 +33,24 @@ class Viewer:
         self.az = az
 
 class Servo:
-    """ This class is for all servos """
+    """ This class is for all servos
+        angle in range [0, 180] (degrees) """
 
     def __init__(self, angle):
         self.angle = angle
 
     def update(self):
-        ic(self.angle)
+        print(str(self.angle))
 
 class LED:
-    """ This class is for all LEDs """
+    """ This class is for all LEDs
+        brightness in range [0, 0xffff] (16-bit value) """
 
     def __init__(self, brightness):
         self.brightness = brightness
 
     def update(self):
-        ic(self.brightness)
+        print(str(self.brightness))
 
 def func(vars):
     alt, az, t = vars
@@ -64,31 +65,32 @@ servo_az = Servo(180)
 led = LED(0xffff)
 
 sunrise_time = datetime.datetime(2021, 3, 13, 11, 30, tzinfo=datetime.timezone.utc)
-first_guess_alt = -0.1
-first_guess_az = pi*3/4
-first_guess_t = 4
-sunrise_guess_alt = first_guess_alt
-sunrise_guess_az = first_guess_az
-sunrise_guess_t = first_guess_t
+sunrise_guess_alt = -0.1
+sunrise_guess_az = pi*3/4
+sunrise_guess_t = 4
+first_guess_alt = 0.3
+first_guess_az = 3.5
+first_guess_t = 3
 guess_alt = first_guess_alt
 guess_az = first_guess_az
 guess_t = first_guess_t
 
 unstable_math = False
-now = sunrise_time
-while now < datetime.datetime(2021, 3, 15, 16, 30, tzinfo=datetime.timezone.utc) and not unstable_math:
-    sleep(0.5)
-#     now = datetime.datetime.now(datetime.timezone.utc)
+while not unstable_math:
+    now = datetime.datetime.now(datetime.timezone.utc)
     
     # Get sun's location at current time (in radians)
     gnomon.alt = get_altitude(LAT, LON, now)*pi/180
     gnomon.az = get_azimuth(LAT, LON, now)*pi/180
     
-    ic(now)
-    ic(gnomon.alt*180/pi)
-    ic(gnomon.az*180/pi)
-    
     if gnomon.alt < 0:
+        # Sleep until 10 minutes before this morning's sunrise
+        #  and then increments of 1 minute until sunrise
+        if led.brightness > 0:
+            sleep_time = sunrise_time + datetime.timedelta(days=1, minutes=-10) - now
+        else:
+            sleep_time = datetime.timedelta(minutes=1)
+        
         # Prep our next guess to be the last sunrise alt/az/t
         guess_alt = sunrise_guess_alt
         guess_az = sunrise_guess_az
@@ -99,46 +101,34 @@ while now < datetime.datetime(2021, 3, 15, 16, 30, tzinfo=datetime.timezone.utc)
         servo_alt.angle = 135
         servo_az.angle = 90
         
-        ic(sunrise_time)
-        ic(first_guess_alt*180/pi)
-        ic(first_guess_az*180/pi)
-        ic(first_guess_t)
-        ic(sunrise_guess_alt*180/pi)
-        ic(sunrise_guess_az*180/pi)
-        ic(sunrise_guess_t)
-        ic(guess_alt*180/pi)
-        ic(guess_az*180/pi)
-        ic(guess_t)
-        ic(arm.alt)
-        ic(arm.az)
-        
         # Update the physical sundial
         led.update()
         servo_alt.update()
         servo_az.update()
         
-        # Sleep until 10 minutes before this morning's sunrise
-        sleep_time = sunrise_time + datetime.timedelta(days=1, minutes=-10) - now
-#         sleep(int(sleep_time))
-        ic(sleep_time)
-        print("")
-        now += sleep_time
+        sleep(int(sleep_time))
         
     else:
         # Calculate sun's location relative to arm pivot point
         root = fsolve(func, (guess_alt, guess_az, guess_t))
-        
-        ic(root)
-        ic(isclose(func(root), [0.0, 0.0, 0.0]))
 
+        # Validate fsolve worked and then continue with updates
         if not all(isclose(func(root), [0.0, 0.0, 0.0])):
             unstable_math = True
-        else:           
+        elif root[2] < 0:
+            unstable_math = True
+        else:
+            # alt in range: [-pi/2, pi/2]
             arm.alt = root[0]
-            arm.az = root[1] + pi if root[1] < 0 else root[1]
-            # TODO: Better quadrant validation
+            while arm.alt < -pi/2: arm.alt += 2*pi
+            while arm.alt > pi/2: arm.alt += -2*pi
             
-            # Refresh our best guess for sunrise alt/az/t
+            # az in range: [pi/2, 3*pi/2]
+            arm.az = root[1]
+            while arm.az < pi/2: arm.az += 2*pi
+            while arm.az > 3*pi/2: arm.az += -2*pi
+            
+            # If the sun is coming up, refresh our best guess for sunrise time/alt/az/t
             if led.brightness == 0:
                 sunrise_time = now
                 sunrise_guess_alt = arm.alt
@@ -151,30 +141,16 @@ while now < datetime.datetime(2021, 3, 15, 16, 30, tzinfo=datetime.timezone.utc)
             guess_t = root[2]
             
             led.brightness = 0xffff
-            servo_alt.angle = (pi/2+arm.alt)*180/pi
+            servo_alt.angle = (arm.alt+pi/2)*180/pi
             servo_az.angle = (arm.az-pi/2)*180/pi
-            
-            ic(sunrise_time)
-            ic(sunrise_guess_alt*180/pi)
-            ic(sunrise_guess_az*180/pi)
-            ic(sunrise_guess_t)
-            ic(guess_alt*180/pi)
-            ic(guess_az*180/pi)
-            ic(guess_t)
-            ic(arm.alt)
-            ic(arm.az)
-            
+                        
             # Update the physical sundial
             servo_alt.update()
             servo_az.update()
             led.update()
 
             # Sleep 10 minutes
-            # TODO: What is the resolution of the servos?
-#             sleep(60*10)
-            print("Sleep: 10 min")
-            print("")
-            now += datetime.timedelta(minutes=90)
+            sleep(60*10) # TODO: What is the resolution of the servos?
 
 # light off and servos to home position
 led.brightness = 0
@@ -185,5 +161,3 @@ servo_az.angle = 90
 led.update()
 servo_alt.update()
 servo_az.update()
-
-print("Variables upon abort:")
