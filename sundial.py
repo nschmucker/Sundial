@@ -63,16 +63,17 @@ servo_alt = Servo(0)
 servo_az = Servo(180)
 led = LED(0xffff)
 
-sunrise_time = datetime.datetime(2021, 3, 13, 11, 30, tzinfo=datetime.timezone.utc)
-sunrise_guess_alt = -0.1
-sunrise_guess_az = pi*3/4
-sunrise_guess_t = 4
-first_guess_alt = 0.3
-first_guess_az = 3.5
-first_guess_t = 3
-guess_alt = first_guess_alt
-guess_az = first_guess_az
-guess_t = first_guess_t
+last_sunrise = {
+    "alt": -0.1,
+    "az": pi*3/4,
+    "t": 4,
+    "time": datetime.datetime(2021, 3, 13, 11, 30, tzinfo=datetime.timezone.utc)
+}
+guess = {
+    "alt": 0.3,
+    "az": 3.5,
+    "t": t
+}
 
 unstable_math = False
 while not unstable_math:
@@ -86,14 +87,14 @@ while not unstable_math:
         # Sleep until 10 minutes before this morning's sunrise
         #  and then increments of 1 minute until sunrise
         if led.brightness > 0:
-            sleep_time = sunrise_time + datetime.timedelta(days=1, minutes=-10) - now
+            sleep_time = last_sunrise["time"] + datetime.timedelta(days=1, minutes=-10) - now
         else:
             sleep_time = datetime.timedelta(minutes=1)
         
         # Prep our next guess to be the last sunrise alt/az/t
-        guess_alt = sunrise_guess_alt
-        guess_az = sunrise_guess_az
-        guess_t = sunrise_guess_t
+        guess["alt"] = last_sunrise["alt"]
+        guess["az"] = last_sunrise["az"]
+        guess["t"] = last_sunrise["t"]
         
         # light off and servos to home position
         led.brightness = 0
@@ -109,7 +110,7 @@ while not unstable_math:
         
     else:
         # Calculate sun's location relative to arm pivot point
-        root = fsolve(func, (guess_alt, guess_az, guess_t))
+        root = fsolve(func, (guess["alt"], guess["az"], guess["t"]))
 
         # Validate fsolve worked and then continue with updates
         if not all(isclose(func(root), [0.0, 0.0, 0.0])):
@@ -129,15 +130,15 @@ while not unstable_math:
             
             # If the sun is coming up, refresh our best guess for sunrise time/alt/az/t
             if led.brightness == 0:
-                sunrise_time = now
-                sunrise_guess_alt = arm["alt"]
-                sunrise_guess_az = arm["az"]
-                sunrise_guess_t = root[2]
+                last_sunrise["alt"] = arm["alt"]
+                last_sunrise["az"] = arm["az"]
+                last_sunrise["t"] = root[2]
+                last_sunrise["time"] = now
             
             # Prep our next guess to be the latest solution
-            guess_alt = arm["alt"]
-            guess_az = arm["az"]
-            guess_t = root[2]
+            guess["alt"] = arm["alt"]
+            guess["az"] = arm["az"]
+            guess["t"] = root[2]
             
             led.brightness = 0xffff
             servo_alt.angle = (arm["alt"]+pi/2)*180/pi
