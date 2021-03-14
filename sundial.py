@@ -66,28 +66,31 @@ led = LED(0xffff)
 last_sunrise = {
     "alt": -0.1,
     "az": pi*3/4,
-    "t": 4,
-    "time": datetime.datetime(2021, 3, 13, 11, 30, tzinfo=datetime.timezone.utc)
+    "t": 4
 }
 guess = {
     "alt": 0.3,
     "az": 3.5,
     "t": t
 }
+times = {
+    "now": datetime.datetime.now(datetime.timezone.utc),
+    "last_sunrise": datetime.datetime(2021, 3, 13, 11, 30, tzinfo=datetime.timezone.utc)
+}
 
 unstable_math = False
 while not unstable_math:
-    now = datetime.datetime.now(datetime.timezone.utc)
+    times["now"] = datetime.datetime.now(datetime.timezone.utc)
     
     # Get sun's location at current time (in radians)
-    gnomon["alt"] = get_altitude(LAT, LON, now)*pi/180
-    gnomon["az"] = get_azimuth(LAT, LON, now)*pi/180
+    gnomon["alt"] = get_altitude(LAT, LON, times["now"])*pi/180
+    gnomon["az"] = get_azimuth(LAT, LON, times["now"])*pi/180
     
     if gnomon["alt"] < 0:
         # Sleep until 10 minutes before this morning's sunrise
         #  and then increments of 1 minute until sunrise
         if led.brightness > 0:
-            sleep_time = last_sunrise["time"] + datetime.timedelta(days=1, minutes=-10) - now
+            sleep_time = last_sunrise["time"] + datetime.timedelta(days=1, minutes=-10) - times["now"]
         else:
             sleep_time = datetime.timedelta(minutes=1)
         
@@ -130,10 +133,10 @@ while not unstable_math:
             
             # If the sun is coming up, refresh our best guess for sunrise time/alt/az/t
             if led.brightness == 0:
+                times["last_sunrise"] = times["now"]
                 last_sunrise["alt"] = arm["alt"]
                 last_sunrise["az"] = arm["az"]
                 last_sunrise["t"] = root[2]
-                last_sunrise["time"] = now
             
             # Prep our next guess to be the latest solution
             guess["alt"] = arm["alt"]
