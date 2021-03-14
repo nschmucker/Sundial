@@ -47,6 +47,19 @@ def func(vars):
             (arm["loc"][1] + arm["length"]*cos(alt)*sin(az-pi/2)) - (gnomon["loc"][1] + t*sin(gnomon["az"]-pi/2)),
             (arm["loc"][2] + arm["length"]*sin(alt)) - (gnomon["loc"][2] + t*tan(gnomon["alt"]))]
 
+def validate_fsolve(x):
+    finds_zeros = all(isclose(func(x), [0.0, 0.0, 0.0]))
+    positive_t = x[2] >= 0
+
+    return finds_zeros and positive_t
+
+def rotate_angle(angle, min_val, max_val):
+    a = angle
+    while a < min_val: a += 2*pi
+    while a > max_val: a += -2*pi
+
+    return a
+
 gnomon = {
     "loc": GNOMON_LOC,
     "length": GNOMON_LENGTH,
@@ -99,7 +112,7 @@ while not unstable_math:
         guess["az"] = last_sunrise["az"]
         guess["t"] = last_sunrise["t"]
         
-        # light off and servos to home position
+        # Light off and servos to home position
         led.brightness = 0
         servo_alt.angle = 135
         servo_az.angle = 90
@@ -116,20 +129,10 @@ while not unstable_math:
         root = fsolve(func, (guess["alt"], guess["az"], guess["t"]))
 
         # Validate fsolve worked and then continue with updates
-        if not all(isclose(func(root), [0.0, 0.0, 0.0])):
-            unstable_math = True
-        elif root[2] < 0:
-            unstable_math = True
-        else:
-            # alt in range: [-pi/2, pi/2]
-            arm["alt"] = root[0]
-            while arm["alt"] < -pi/2: arm["alt"] += 2*pi
-            while arm["alt"] > pi/2: arm["alt"] += -2*pi
-            
-            # az in range: [pi/2, 3*pi/2]
-            arm["az"] = root[1]
-            while arm["az"] < pi/2: arm["az"] += 2*pi
-            while arm["az"] > 3*pi/2: arm["az"] += -2*pi
+        if validate_fsolve(root):
+            # Move our alt and az to be in the correct range
+            arm["alt"] = rotate_angle(root[0], -pi/2, pi/2)
+            arm["az"] = rotate_angle(root[1], pi/2, 3*pi/2)
             
             # If the sun is coming up, refresh our best guess for sunrise time/alt/az/t
             if led.brightness == 0:
@@ -142,7 +145,8 @@ while not unstable_math:
             guess["alt"] = arm["alt"]
             guess["az"] = arm["az"]
             guess["t"] = root[2]
-            
+
+            # Light on and servos to appropriate position
             led.brightness = 0xffff
             servo_alt.angle = (arm["alt"]+pi/2)*180/pi
             servo_az.angle = (arm["az"]-pi/2)*180/pi
@@ -154,8 +158,11 @@ while not unstable_math:
 
             # Sleep 10 minutes
             sleep(60*10) # TODO: What is the resolution of the servos?
+            
+        else:
+            unstable_math = True
 
-# light off and servos to home position
+# Light off and servos to home position
 led.brightness = 0
 servo_alt.angle = 135
 servo_az.angle = 90
