@@ -21,17 +21,6 @@ ARM_LENGTH = 5
 LAT =  39.95
 LON = -75.15
 
-class Viewer:
-    """ This class is for all reference points for viewing the sun.
-        loc and length must be the same units
-        alt and az are in radians, relative to horizon and north """
-
-    def __init__(self, loc, length, alt, az):
-        self.loc = loc
-        self.length = length
-        self.alt = alt
-        self.az = az
-
 class Servo:
     """ This class is for all servos
         angle in range [0, 180] (degrees) """
@@ -54,12 +43,22 @@ class LED:
 
 def func(vars):
     alt, az, t = vars
-    return [(arm.loc[0] + arm.length*cos(alt)*cos(az-pi/2)) - (gnomon.loc[0] + t*cos(gnomon.az-pi/2)),
-            (arm.loc[1] + arm.length*cos(alt)*sin(az-pi/2)) - (gnomon.loc[1] + t*sin(gnomon.az-pi/2)),
-            (arm.loc[2] + arm.length*sin(alt)) - (gnomon.loc[2] + t*tan(gnomon.alt))]
+    return [(arm["loc"][0] + arm["length"]*cos(alt)*cos(az-pi/2)) - (gnomon["loc"][0] + t*cos(gnomon["az"]-pi/2)),
+            (arm["loc"][1] + arm["length"]*cos(alt)*sin(az-pi/2)) - (gnomon["loc"][1] + t*sin(gnomon["az"]-pi/2)),
+            (arm["loc"][2] + arm["length"]*sin(alt)) - (gnomon["loc"][2] + t*tan(gnomon["alt"]))]
 
-gnomon = Viewer(GNOMON_LOC, GNOMON_LENGTH, 0, 0)
-arm = Viewer(ARM_LOC, ARM_LENGTH, 0, 0)
+gnomon = {
+    "loc": GNOMON_LOC,
+    "length": GNOMON_LENGTH,
+    "alt": 0, # radians, relative to horizon
+    "az": 0 # radians, relative to north
+}
+arm = {
+    "loc": ARM_LOC,
+    "length": ARM_LENGTH,
+    "alt": 0, # radians, relative to horizon
+    "az": 0  # radians, relative to north
+}
 servo_alt = Servo(0)
 servo_az = Servo(180)
 led = LED(0xffff)
@@ -80,10 +79,10 @@ while not unstable_math:
     now = datetime.datetime.now(datetime.timezone.utc)
     
     # Get sun's location at current time (in radians)
-    gnomon.alt = get_altitude(LAT, LON, now)*pi/180
-    gnomon.az = get_azimuth(LAT, LON, now)*pi/180
+    gnomon["alt"] = get_altitude(LAT, LON, now)*pi/180
+    gnomon["az"] = get_azimuth(LAT, LON, now)*pi/180
     
-    if gnomon.alt < 0:
+    if gnomon["alt"] < 0:
         # Sleep until 10 minutes before this morning's sunrise
         #  and then increments of 1 minute until sunrise
         if led.brightness > 0:
@@ -119,30 +118,30 @@ while not unstable_math:
             unstable_math = True
         else:
             # alt in range: [-pi/2, pi/2]
-            arm.alt = root[0]
-            while arm.alt < -pi/2: arm.alt += 2*pi
-            while arm.alt > pi/2: arm.alt += -2*pi
+            arm["alt"] = root[0]
+            while arm["alt"] < -pi/2: arm["alt"] += 2*pi
+            while arm["alt"] > pi/2: arm["alt"] += -2*pi
             
             # az in range: [pi/2, 3*pi/2]
-            arm.az = root[1]
-            while arm.az < pi/2: arm.az += 2*pi
-            while arm.az > 3*pi/2: arm.az += -2*pi
+            arm["az"] = root[1]
+            while arm["az"] < pi/2: arm["az"] += 2*pi
+            while arm["az"] > 3*pi/2: arm["az"] += -2*pi
             
             # If the sun is coming up, refresh our best guess for sunrise time/alt/az/t
             if led.brightness == 0:
                 sunrise_time = now
-                sunrise_guess_alt = arm.alt
-                sunrise_guess_az = arm.az
+                sunrise_guess_alt = arm["alt"]
+                sunrise_guess_az = arm["az"]
                 sunrise_guess_t = root[2]
             
             # Prep our next guess to be the latest solution
-            guess_alt = arm.alt
-            guess_az = arm.az
+            guess_alt = arm["alt"]
+            guess_az = arm["az"]
             guess_t = root[2]
             
             led.brightness = 0xffff
-            servo_alt.angle = (arm.alt+pi/2)*180/pi
-            servo_az.angle = (arm.az-pi/2)*180/pi
+            servo_alt.angle = (arm["alt"]+pi/2)*180/pi
+            servo_az.angle = (arm["az"]-pi/2)*180/pi
                         
             # Update the physical sundial
             servo_alt.update()
