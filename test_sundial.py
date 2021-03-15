@@ -1,10 +1,11 @@
 """
 sundial.py
-This file contains code to run an indoor sundial
+This file contains code to test sundial.py
 Developed on Python 3.7.3 / Raspberry Pi 4
 Nathaniel Schmucker
 """
 
+from icecream import ic
 from pysolar.solar import get_altitude, get_azimuth
 from scipy.optimize import fsolve
 from numpy import isclose
@@ -18,12 +19,8 @@ ARM_LOC = (0, -2, 1)
 ARM_LENGTH = 5
 
 # Independence Hall
-# LAT =  39.95
-# LON = -75.15
-
-# Hawaii
-LAT =   19.8
-LON = -155.5
+LAT =  39.95
+LON = -75.15
 
 gnomon = {
     "loc": GNOMON_LOC,
@@ -49,7 +46,7 @@ guess = {
 }
 times = {
     "now": datetime.datetime.now(datetime.timezone.utc),
-    "last_sunrise": datetime.datetime(2021, 3, 14, 11, 3, tzinfo=datetime.timezone.utc)
+    "last_sunrise": datetime.datetime(2021, 3, 14, 11, 20, tzinfo=datetime.timezone.utc)
 }
 
 class Servo:
@@ -96,8 +93,15 @@ servo_az = Servo(180)
 led = LED(0xffff)
 
 unstable_math = False
-while not unstable_math:
-    times["now"] = datetime.datetime.now(datetime.timezone.utc)
+i = 0
+while (not unstable_math and i < 20):    
+    i += 1
+    
+    ic(gnomon)
+    ic(arm)
+    ic(times)
+    ic(last_sunrise)
+    ic(guess)
     
     # Get sun's location at current time (in radians)
     gnomon["alt"] = get_altitude(LAT, LON, times["now"])*pi/180
@@ -126,7 +130,7 @@ while not unstable_math:
         servo_alt.update()
         servo_az.update()
         
-        sleep(int(sleep_time))
+        times["now"] += sleep_time
         
     else:
         # Calculate sun's location relative to arm pivot point
@@ -161,7 +165,7 @@ while not unstable_math:
             led.update()
 
             # Sleep 10 minutes
-            sleep(60*10) # TODO: What is the resolution of the servos?
+            times["now"] += datetime.timedelta(minutes = 10)
             
         else:
             unstable_math = True
@@ -175,3 +179,5 @@ servo_az.angle = 90
 led.update()
 servo_alt.update()
 servo_az.update()
+
+if unstable_math: print("Reached unstable_math == True")
