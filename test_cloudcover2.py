@@ -17,7 +17,7 @@ base_url = "https://data.climacell.co/v4/timelines?"
 
 # complete url address 
 url = base_url + \
-      "location=" + str(LON) + "," + str(LAT) + \
+      "location=" + str(LAT) + "," + str(LON) + \
       "&fields=cloudCover" + \
       "&timesteps=current" + \
       "&apikey=" + API_KEY 
