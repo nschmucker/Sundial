@@ -30,7 +30,7 @@ ARM_LENGTH = 5         # Consistent units with ARM_LOC
 LAT =  39.95 
 LON = -75.15 
 
-API_KEY = "YDgMefVz29eKGJtUF9g1W6LxjFVh8o0U"
+API_KEY = "KEY"
 BASE_URL = "https://data.climacell.co/v4/timelines?"
 URL = BASE_URL + \
       "location=" + str(LAT) + "," + str(LON) + \
