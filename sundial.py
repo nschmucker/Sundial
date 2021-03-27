@@ -9,8 +9,25 @@ from pysolar.solar import get_altitude, get_azimuth
 from scipy.optimize import fsolve
 from numpy import isclose
 from math import cos, sin, tan, pi
+
+from board import SCL, SDA
+from busio import I2C
+from adafruit_pca9685 import PCA9685
+from adafruit_motor import servo
+
+import requests
+
 from time import sleep
+
 import datetime
+
+i2c = I2C(SCL, SDA)
+hat = PCA9685(i2c)
+hat.frequency = 50
+led4 = hat.channels[4]
+servo_alt = servo.Servo(hat.channels[13], min_pulse=600, max_pulse=2500)
+servo_az = servo.Servo(hat.channels[15], min_pulse=600, max_pulse=2500)
+
 
 GNOMON_LOC = (0, 0, 0)
 GNOMON_LENGTH = None
@@ -18,12 +35,8 @@ ARM_LOC = (0, -2, 1)
 ARM_LENGTH = 5
 
 # Independence Hall
-# LAT =  39.95
-# LON = -75.15
-
-# Hawaii
-LAT =   19.8
-LON = -155.5
+LAT =  39.95
+LON = -75.15
 
 gnomon = {
     "loc": GNOMON_LOC,
@@ -52,6 +65,36 @@ times = {
     "last_sunrise": datetime.datetime(2021, 3, 14, 11, 3, tzinfo=datetime.timezone.utc)
 }
 
+API_KEY = "YDgMefVz29eKGJtUF9g1W6LxjFVh8o0U"
+BASE_URL = "https://data.climacell.co/v4/timelines?"
+URL = BASE_URL + \
+      "location=" + str(LAT) + "," + str(LON) + \
+      "&fields=cloudCover" + \
+      "&timesteps=current" + \
+      "&apikey=" + API_KEY 
+
+def get_cloudcover():
+    r = requests.get(URL)
+    j = r.json()
+    cloud_cover = j["data"]["timelines"][0]["intervals"][0]["values"]["cloudCover"]/100
+    
+    return cloud_cover
+
+def mimic_clouds(raw_val):
+    pct_sun = 1 - get_cloudcover()
+    pct_to_adj = 0.8 + 0.2*pct_sun
+    adj_val = int(int(raw_val)*pct_to_adj)
+    
+    return adj_val
+
+is_led_on = gnomon["alt"] >= 0
+def update_leds():
+    brightness = 0xffff if is_led_on else 0
+    adjusted_brightness = mimic_clouds(brightness)
+    
+    led4.duty_cycle = adjusted_brightness
+    print(adjusted_brightness)
+
 class Servo:
     """ This class is for all servos
         angle in range [0, 180] (degrees) """
@@ -61,16 +104,6 @@ class Servo:
 
     def update(self):
         print(str(self.angle))
-
-class LED:
-    """ This class is for all LEDs
-        brightness in range [0, 0xffff] (16-bit value) """
-
-    def __init__(self, brightness):
-        self.brightness = brightness
-
-    def update(self):
-        print(str(self.brightness))
 
 def func(vars):
     alt, az, t = vars
@@ -93,7 +126,8 @@ def rotate_angle(angle, min_val, max_val):
 
 servo_alt = Servo(0)
 servo_az = Servo(180)
-led = LED(0xffff)
+
+
 
 unstable_math = False
 while not unstable_math:
@@ -106,7 +140,7 @@ while not unstable_math:
     if gnomon["alt"] < 0:
         # Sleep until 10 minutes before this morning's sunrise
         #  and then increments of 1 minute until sunrise
-        if led.brightness > 0:
+        if is_led_on:
             sleep_time = times["last_sunrise"] + datetime.timedelta(days=1, minutes=-10) - times["now"]
         else:
             sleep_time = datetime.timedelta(minutes=1)
@@ -117,12 +151,12 @@ while not unstable_math:
         guess["t"] = last_sunrise["t"]
         
         # Light off and servos to home position
-        led.brightness = 0
+        is_led_on = False
         servo_alt.angle = 135
         servo_az.angle = 90
         
         # Update the physical sundial
-        led.update()
+        update_leds()
         servo_alt.update()
         servo_az.update()
         
@@ -139,7 +173,7 @@ while not unstable_math:
             arm["az"] = rotate_angle(root[1], pi/2, 3*pi/2)
             
             # If the sun is coming up, refresh our best guess for sunrise time/alt/az/t
-            if led.brightness == 0:
+            if not is_led_on:
                 times["last_sunrise"] = times["now"]
                 last_sunrise["alt"] = arm["alt"]
                 last_sunrise["az"] = arm["az"]
@@ -151,14 +185,14 @@ while not unstable_math:
             guess["t"] = root[2]
 
             # Light on and servos to appropriate position
-            led.brightness = 0xffff
+            is_led_on = True
             servo_alt.angle = (arm["alt"]+pi/2)*180/pi
             servo_az.angle = (arm["az"]-pi/2)*180/pi
                         
             # Update the physical sundial
             servo_alt.update()
             servo_az.update()
-            led.update()
+            update_leds()
 
             # Sleep 10 minutes
             sleep(60*10) # TODO: What is the resolution of the servos?
@@ -167,11 +201,11 @@ while not unstable_math:
             unstable_math = True
 
 # Light off and servos to home position
-led.brightness = 0
+is_led_on = False
 servo_alt.angle = 135
 servo_az.angle = 90
 
 # Update the physical sundial
-led.update()
+update_leds()
 servo_alt.update()
 servo_az.update()
