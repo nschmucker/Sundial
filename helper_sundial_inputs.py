@@ -14,8 +14,8 @@ import datetime
 
 GNOMON_LOC = (0, 0, 0)
 GNOMON_LENGTH = None
-ARM_LOC = (0, -2, 1)
-ARM_LENGTH = 5
+ARM_LOC = (0, -8, 6)
+ARM_LENGTH = 13.25
 
 # Independence Hall
 LAT =  39.95

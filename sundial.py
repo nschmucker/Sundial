@@ -23,14 +23,14 @@ from time import sleep
 # --- Global constants; update to reflect physical sundial ---
 GNOMON_LOC = (0, 0, 0) # By definition, center on gnomon tip
 GNOMON_LENGTH = None
-ARM_LOC = (0, -2, 1)   # Pivot point of movable arm
-ARM_LENGTH = 5         # Consistent units with ARM_LOC
+ARM_LOC = (0, -8, 6)   # Pivot point of movable arm
+ARM_LENGTH = 13.25     # Consistent units with ARM_LOC
 
 # Independence Hall
 LAT =  39.95 
 LON = -75.15 
 
-API_KEY = "KEY"
+API_KEY = "API_KEY"
 BASE_URL = "https://data.climacell.co/v4/timelines?"
 URL = BASE_URL + \
       "location=" + str(LAT) + "," + str(LON) + \
@@ -54,18 +54,18 @@ arm = {
     "az": 0   # radians, relative to north
 }
 last_sunrise = {
-    "alt": -0.2,
-    "az": 1.9,
-    "t": 4.6
+    "alt": -0.5,
+    "az": 2.1,
+    "t": 10.3
 }
 guess = {
-    "alt": 0.4,
-    "az": 2.8,
-    "t": 2.8
+    "alt": 0.1,
+    "az": 3.6,
+    "t": 7.1
 }
 times = {
     "now": datetime.datetime.now(datetime.timezone.utc),
-    "last_sunrise": datetime.datetime(2021, 3, 27, 10, 42, tzinfo=datetime.timezone.utc)
+    "last_sunrise": datetime.datetime(2021, 4, 10, 10, 21, tzinfo=datetime.timezone.utc)
 }
 
 is_led_on = gnomon["alt"] >= 0
@@ -102,6 +102,8 @@ def update_leds():
     brightness = 0xffff if is_led_on else 0
     adjusted_brightness = mimic_clouds(brightness)
     
+    led0.duty_cycle = adjusted_brightness
+    led2.duty_cycle = adjusted_brightness
     led4.duty_cycle = adjusted_brightness
 
 def func(vars):
@@ -145,6 +147,8 @@ hat.frequency = 50
 
 servo_alt = servo.Servo(hat.channels[13], min_pulse=600, max_pulse=2500)
 servo_az = servo.Servo(hat.channels[15], min_pulse=600, max_pulse=2500)
+led0 = hat.channels[0]
+led2 = hat.channels[2]
 led4 = hat.channels[4]
 
 unstable_math = False
@@ -201,7 +205,7 @@ while not unstable_math:
 
             # Move servos and light on
             servo_alt.angle = (arm["alt"]+pi/2)*180/pi
-            servo_az.angle = (arm["az"]-pi/2)*180/pi
+            servo_az.angle = (pi*3/2-arm["az"])*180/pi
             
             is_led_on = True
             update_leds()
